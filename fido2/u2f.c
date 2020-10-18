@@ -26,7 +26,7 @@ static int16_t u2f_authenticate(struct u2f_authenticate_request * req, uint8_t c
 int8_t u2f_response_writeback(const uint8_t * buf, uint16_t len);
 void u2f_reset_response();
 
-void make_auth_tag(uint8_t * rpIdHash, uint8_t * nonce, uint32_t count, uint8_t * tag);
+void make_auth_tag(uint8_t * rpIdHash, uint8_t * nonce, uint8_t * extState, size_t extStateSize, uint8_t * tag);
 
 static CTAP_RESPONSE * _u2f_resp = NULL;
 
@@ -163,7 +163,19 @@ static void dump_signature_der(uint8_t * sig)
 }
 static int8_t u2f_load_key(struct u2f_key_handle * kh, uint8_t khl, uint8_t * appid)
 {
-    crypto_ecc256_load_key((uint8_t*)kh, khl, NULL, 0);
+
+    if (khl == sizeof(CredentialId))
+    {
+        printf1(TAG_U2F, "FIDO2 key handle detected.\n");
+        CredentialId * cred = (CredentialId *) kh;
+        // FIDO2 credential.
+
+        crypto_ecc256_load_key((uint8_t*)cred->credentialMac, 32, NULL, 0);
+
+    }else
+    {
+        crypto_ecc256_load_key((uint8_t*)kh, khl, NULL, 0);
+    }
     return 0;
 }
 
@@ -192,6 +204,7 @@ int8_t u2f_authenticate_credential(struct u2f_key_handle * kh, uint8_t key_handl
 {
     printf1(TAG_U2F, "checked CRED SIZE %d. (FIDO2: %d)\n", key_handle_len, sizeof(CredentialId));
     uint8_t tag[U2F_KEY_HANDLE_TAG_SIZE];
+    uint8_t fido_tag[32];
 
     if (key_handle_len == sizeof(CredentialId))
     {
@@ -199,14 +212,9 @@ int8_t u2f_authenticate_credential(struct u2f_key_handle * kh, uint8_t key_handl
         CredentialId * cred = (CredentialId *) kh;
         // FIDO2 credential.
 
-        if (memcmp(cred->rpIdHash, appid, 32) != 0)
-        {
-            printf1(TAG_U2F, "APPID does not match rpIdHash.\n");
-            return 0;
-        }
-        make_auth_tag(appid, (uint8_t*)&cred->entropy, cred->count, tag);
+        make_auth_tag(appid, cred->uniqueId, cred->extState, EXT_STATE_SIZE, fido_tag);
 
-        if (memcmp(cred->tag, tag, CREDENTIAL_TAG_SIZE) == 0){
+        if (memcmp(cred->credentialMac, fido_tag, CREDENTIAL_TAG_SIZE) == 0){
             return 1;
         }
 

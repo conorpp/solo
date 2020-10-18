@@ -705,7 +705,7 @@ uint8_t ctaphid_custom_command(int len, CTAP_RESPONSE * ctap_resp, CTAPHID_WRITE
 {
     ctap_response_init(ctap_resp);
 
-#if !defined(IS_BOOTLOADER) && (defined(SOLO_EXPERIMENTAL))
+#if !defined(IS_BOOTLOADER)
     uint32_t param;
 #endif
 #if defined(IS_BOOTLOADER)
@@ -780,28 +780,29 @@ uint8_t ctaphid_custom_command(int len, CTAP_RESPONSE * ctap_resp, CTAPHID_WRITE
         break;
 #endif
 
-#if !defined(IS_BOOTLOADER) && (defined(SOLO_EXPERIMENTAL))
+#if !defined(IS_BOOTLOADER)
         case CTAPHID_LOADKEY:
             /**
              * Load external key.  Useful for enabling backups.
-             * bytes:                   4                     4                      96
-             * payload:  version [maj rev patch RFU]| counter_replacement (BE) | master_key |
+             * bytes:       1        32     0..256
+             * payload:  version  seedKey  extState
              * 
-             * Counter should be increased by a large amount, e.g. (0x10000000)
-             * to outdo any previously lost/broken keys.
             */
             printf1(TAG_HID,"CTAPHID_LOADKEY\n");
-            if (len != 104)
+            if (len < (1 + 32) || len > (1 + 32 + 256))
             {
                 printf2(TAG_ERR,"Error, invalid length.\n");
                 ctaphid_send_error(wb->cid, CTAP1_ERR_INVALID_LENGTH);
                 return 1;
             }
-            param = ctap_buffer[0] << 16;
-            param |= ctap_buffer[1] << 8;
-            param |= ctap_buffer[2] << 0;
-            if (param != 0){
+            param = ctap_buffer[0];
+            if (param != 1){
                 ctaphid_send_error(wb->cid, CTAP2_ERR_UNSUPPORTED_OPTION);
+                return 1;
+            }
+
+            if (len - 1 - 32 > EXT_STATE_SIZE) {
+                ctaphid_send_error(wb->cid, CTAP1_ERR_INVALID_LENGTH);
                 return 1;
             }
 
@@ -810,15 +811,8 @@ uint8_t ctaphid_custom_command(int len, CTAP_RESPONSE * ctap_resp, CTAPHID_WRITE
                 if (ctap_user_presence_test(2000) > 0)
                     if (ctap_user_presence_test(2000) > 0)
                     {
-                        ctap_load_external_keys(ctap_buffer + 8);
-                        param = ctap_buffer[7];
-                        param |= ctap_buffer[6] << 8;
-                        param |= ctap_buffer[5] << 16;
-                        param |= ctap_buffer[4] << 24;
-                        ctap_atomic_count(param);
-
+                        ctap_load_external_keys(ctap_buffer + 1, ctap_buffer + 1 + 32, len - 1 - 32);
                         wb->bcnt = 0;
-
                         ctaphid_write(wb, NULL, 0);
                         return 1;
                     }
