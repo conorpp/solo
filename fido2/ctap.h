@@ -124,7 +124,6 @@
 
 #define CREDENTIAL_RK_FLASH_PAD     2   // size of RK should be 8-byte aligned to store in flash easily.
 #define CREDENTIAL_TAG_SIZE         16
-#define CREDENTIAL_NONCE_SIZE       (16 + CREDENTIAL_RK_FLASH_PAD)
 #define CREDENTIAL_COUNTER_SIZE     (4)
 #define CREDENTIAL_ENC_SIZE         176  // pad to multiple of 16 bytes
 
@@ -149,6 +148,7 @@
 #define PIN_BOOT_ATTEMPTS           3       // number of attempts per boot
 
 #define CTAP2_UP_DELAY_MS           29000
+#define EXT_STATE_SIZE              43
 
 typedef struct
 {
@@ -160,16 +160,17 @@ typedef struct
 }__attribute__((packed)) CTAP_userEntity;
 
 typedef struct {
-    uint8_t tag[CREDENTIAL_TAG_SIZE];
-    union {
-        uint8_t nonce[CREDENTIAL_NONCE_SIZE];
-        struct {
-            uint8_t _pad[CREDENTIAL_NONCE_SIZE - 4];
-            uint32_t value;
-        }__attribute__((packed)) metadata;
-    }__attribute__((packed)) entropy;
-    uint8_t rpIdHash[32];
-    uint32_t count;
+    uint8_t version;
+    uint8_t uniqueId[32];
+    uint8_t extState[EXT_STATE_SIZE]; // chosen 43 to make whole credentialId 8 byte aligned.
+    uint8_t credentialMac[32];
+
+    // Required fields for RK, not used for wrapped keys.
+    struct __attribute__((packed)) {
+        uint32_t count;
+        uint8_t rpIdHash[32];
+    }  rkInfo;
+
 }__attribute__((packed)) CredentialId;
 
 struct  __attribute__((packed)) Credential {
@@ -417,6 +418,6 @@ extern uint8_t KEY_AGREEMENT_PUB[64];
 
 void lock_device_permanently();
 
-void ctap_load_external_keys(uint8_t * keybytes);
+void ctap_load_external_keys(uint8_t * keybytes, uint8_t * extState, size_t extStateSize);
 
 #endif

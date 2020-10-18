@@ -9,7 +9,7 @@
 
 #include "ctap.h"
 
-#define KEY_SPACE_BYTES     128
+#define KEY_SPACE_BYTES     32
 #define MAX_KEYS            (1)
 #define PIN_SALT_LEN        (32)
 #define STATE_VERSION        (1)
@@ -50,6 +50,7 @@ typedef struct
 
     uint16_t rk_stored;
 
+    uint8_t extState[EXT_STATE_SIZE];
     uint16_t key_lens[MAX_KEYS];
     uint8_t key_space[KEY_SPACE_BYTES];
     uint8_t data_version;

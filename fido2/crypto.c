@@ -57,7 +57,7 @@ static const uint8_t * _signing_key = NULL;
 static int _key_len = 0;
 
 // Secrets for testing only
-static uint8_t master_secret[64];
+static uint8_t master_secret[32];
 static uint8_t transport_secret[32];
 
 
@@ -73,18 +73,18 @@ void crypto_sha512_init(void)
 
 void crypto_load_master_secret(uint8_t * key)
 {
-#if KEY_SPACE_BYTES < 96
+#if KEY_SPACE_BYTES < 32
 #error "need more key bytes"
 #endif
-    memmove(master_secret, key, 64);
-    memmove(transport_secret, key+64, 32);
+    memmove(master_secret, key, 32);
+    memmove(transport_secret, key, 32);
 }
 
 void crypto_reset_master_secret(void)
 {
-    memset(master_secret, 0, 64);
+    memset(master_secret, 0, 32);
     memset(transport_secret, 0, 32);
-    ctap_generate_rng(master_secret, 64);
+    ctap_generate_rng(master_secret, 32);
     ctap_generate_rng(transport_secret, 32);
 }
 
@@ -123,7 +123,7 @@ void crypto_sha256_hmac_init(uint8_t * key, uint32_t klen, uint8_t * hmac)
     if (key == CRYPTO_MASTER_KEY)
     {
         key = master_secret;
-        klen = sizeof(master_secret)/2;
+        klen = sizeof(master_secret);
     }
     else if (key == CRYPTO_TRANSPORT_KEY)
     {
@@ -157,13 +157,15 @@ void crypto_sha256_hmac_final(uint8_t * key, uint32_t klen, uint8_t * hmac)
     if (key == CRYPTO_MASTER_KEY)
     {
         key = master_secret;
-        klen = sizeof(master_secret)/2;
+        klen = sizeof(master_secret);
     }
-    else if (key == CRYPTO_TRANSPORT_KEY2)
+    else if (key == CRYPTO_TRANSPORT_KEY)
     {
         key = transport_secret;
         klen = 32;
     }
+    printf1(TAG_GREEN, "HMAC KEY: [%d]\r\n", klen);
+    dump_hex1(TAG_GREEN, key, klen);
 
 
     if(klen > 64)
@@ -211,6 +213,8 @@ void crypto_ecc256_load_key(uint8_t * data, int len, uint8_t * data2, int len2)
 {
     static uint8_t privkey[32];
     generate_private_key(data,len,data2,len2,privkey);
+    // Dicekeys requires little endian format, but micro-ecc uses big endian,
+    // so we must swap the bytes.
     _signing_key = privkey;
     _key_len = 32;
 }
@@ -258,14 +262,17 @@ fail:
 
 void generate_private_key(uint8_t * data, int len, uint8_t * data2, int len2, uint8_t * privkey)
 {
-    crypto_sha256_hmac_init(CRYPTO_MASTER_KEY, 0, privkey);
+    uint8_t privkey_swap[32];
+    crypto_sha256_hmac_init(CRYPTO_MASTER_KEY, 0, privkey_swap);
     crypto_sha256_update(data, len);
     crypto_sha256_update(data2, len2);
-    crypto_sha256_update(master_secret, 32);    // TODO AES
-    crypto_sha256_hmac_final(CRYPTO_MASTER_KEY, 0, privkey);
+    crypto_sha256_hmac_final(CRYPTO_MASTER_KEY, 0, privkey_swap);
+    for (int i = 0; i < 32; i++) {
+        privkey[31 - i] = privkey_swap[i];
+    }
 
-    crypto_aes256_init(master_secret + 32, NULL);
-    crypto_aes256_encrypt(privkey, 32);
+    printf1(TAG_RED,"GENERATED PRIVATE KEY: \r\n");
+    dump_hex1(TAG_RED, privkey, 32);
 }
 
 
