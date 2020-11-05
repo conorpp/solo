@@ -164,10 +164,10 @@ static void dump_signature_der(uint8_t * sig)
 static int8_t u2f_load_key(struct u2f_key_handle * kh, uint8_t khl, uint8_t * appid)
 {
 
-    if (khl == sizeof(CredentialId))
+    if (khl == sizeof(ExternalCredentialId))
     {
         printf1(TAG_U2F, "FIDO2 key handle detected.\n");
-        CredentialId * cred = (CredentialId *) kh;
+        ExternalCredentialId * cred = (ExternalCredentialId *) kh;
         // FIDO2 credential.
 
         crypto_ecc256_load_key((uint8_t*)cred->credentialMac, 32, NULL, 0);
@@ -202,17 +202,17 @@ int8_t u2f_new_keypair(struct u2f_key_handle * kh, uint8_t * appid, uint8_t * pu
 // Return 1 if authenticate, 0 if not.
 int8_t u2f_authenticate_credential(struct u2f_key_handle * kh, uint8_t key_handle_len, uint8_t * appid)
 {
-    printf1(TAG_U2F, "checked CRED SIZE %d. (FIDO2: %d)\n", key_handle_len, sizeof(CredentialId));
+    printf1(TAG_U2F, "checked CRED SIZE %d. (FIDO2: %d)\n", key_handle_len, sizeof(ExternalCredentialId));
     uint8_t tag[U2F_KEY_HANDLE_TAG_SIZE];
     uint8_t fido_tag[32];
 
-    if (key_handle_len == sizeof(CredentialId))
+    if (key_handle_len == sizeof(ExternalCredentialId))
     {
         printf1(TAG_U2F, "FIDO2 key handle detected.\n");
-        CredentialId * cred = (CredentialId *) kh;
+        ExternalCredentialId * cred = (ExternalCredentialId *) kh;
         // FIDO2 credential.
 
-        make_auth_tag(appid, cred->uniqueId, cred->extState, EXT_STATE_SIZE, fido_tag);
+        make_auth_tag(appid, cred->uniqueId, cred->extState, cred->extStateLength, fido_tag);
 
         if (memcmp(cred->credentialMac, fido_tag, CREDENTIAL_TAG_SIZE) == 0){
             return 1;

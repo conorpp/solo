@@ -98,12 +98,12 @@ int16_t bridge_u2f_to_extensions(uint8_t * _chal, uint8_t * _appid, uint8_t klen
 
 // Returns 1 if this is a extension request.
 // Else 0 if nothing is done.
-int16_t extend_fido2(CredentialId * credid, uint8_t * output)
+int16_t extend_fido2(ExternalCredentialId * credid, uint8_t * output)
 {
-    if (is_extension_request((uint8_t*)credid, sizeof(CredentialId)))
+    if (is_extension_request((uint8_t*)credid, sizeof(ExternalCredentialId)))
     {
         printf1(TAG_EXT,"IS EXT REQ\r\n");
-        output[0] = bridge_u2f_to_solo(output+1, (uint8_t*)credid, sizeof(CredentialId));
+        output[0] = bridge_u2f_to_solo(output+1, (uint8_t*)credid, sizeof(ExternalCredentialId));
         return 1;
     }
     else

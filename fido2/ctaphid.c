@@ -786,7 +786,7 @@ uint8_t ctaphid_custom_command(int len, CTAP_RESPONSE * ctap_resp, CTAPHID_WRITE
              * Load external key.  Useful for enabling backups.
              * bytes:       1        32     0..256
              * payload:  version  seedKey  extState
-             * 
+             *
             */
             printf1(TAG_HID,"CTAPHID_LOADKEY\n");
             if (len < (1 + 32) || len > (1 + 32 + 256))
@@ -801,10 +801,10 @@ uint8_t ctaphid_custom_command(int len, CTAP_RESPONSE * ctap_resp, CTAPHID_WRITE
                 return 1;
             }
 
-            if (len - 1 - 32 > EXT_STATE_SIZE) {
-                ctaphid_send_error(wb->cid, CTAP1_ERR_INVALID_LENGTH);
-                return 1;
-            }
+            // if (len - 1 - 32 > EXT_STATE_SUPPORTED_SIZE) {
+            //     ctaphid_send_error(wb->cid, CTAP1_ERR_INVALID_LENGTH);
+            //     return 1;
+            // }
 
             // Ask for THREE button presses
             if (ctap_user_presence_test(8000) > 0)

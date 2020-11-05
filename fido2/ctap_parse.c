@@ -908,22 +908,39 @@ uint8_t parse_credential_descriptor(CborValue * arr, CTAP_credentialDescriptor *
         printf2(TAG_ERR,"Error, No valid ID field (%s)\n", cbor_value_get_type_string(&val));
         return CTAP2_ERR_MISSING_PARAMETER;
     }
+    uint8_t tmpCredIdBuffer[sizeof(ExternalCredentialId)];
+    buflen = sizeof(tmpCredIdBuffer);
+    // ret = cbor_value_copy_byte_string(&val, (uint8_t*)&cred->credential.id, &buflen, NULL);
+    ret = cbor_value_copy_byte_string(&val, tmpCredIdBuffer, &buflen, NULL);
 
-    buflen = sizeof(CredentialId);
-    ret = cbor_value_copy_byte_string(&val, (uint8_t*)&cred->credential.id, &buflen, NULL);
+    // First we need to figure out if this is a dicekey credId.
+    if (buflen >= 65 && buflen <= (65 + 256)) {
+        // Length is in range of dicekey and u2f key
+        uint16_t extStateLength = buflen - 65;
 
-    if (buflen == U2F_KEY_HANDLE_SIZE)
+        // Check version
+        if (tmpCredIdBuffer[0] == 1) {
+            // Assuming this is a dicekey credentialId
+            cred->credential.id.version = 1;
+            memmove(cred->credential.id.uniqueId, tmpCredIdBuffer + 1, 32);
+
+            memmove(cred->credential.id.extState, tmpCredIdBuffer + 1 + 32, extStateLength);
+            cred->credential.id.extStateLength = extStateLength;
+            memmove(cred->credential.id.credentialMac, tmpCredIdBuffer + buflen - 32, 32);
+
+        } else {
+            // Assume custom credential
+            printf2(TAG_ERR,"Ignoring credential is incorrect length, treating as custom\n");
+            cred->type = PUB_KEY_CRED_CUSTOM;
+            buflen = 256;
+            ret = cbor_value_copy_byte_string(&val, getAssertionState.customCredId, &buflen, NULL);
+            getAssertionState.customCredIdSize = buflen;
+        }
+    }
+    else if (buflen == U2F_KEY_HANDLE_SIZE)
     {
         printf2(TAG_PARSE,"CTAP1 credential\n");
         cred->type = PUB_KEY_CRED_CTAP1;
-    }
-    else if (buflen != sizeof(CredentialId))
-    {
-        printf2(TAG_ERR,"Ignoring credential is incorrect length, treating as custom\n");
-        cred->type = PUB_KEY_CRED_CUSTOM;
-        buflen = 256;
-        ret = cbor_value_copy_byte_string(&val, getAssertionState.customCredId, &buflen, NULL);
-        getAssertionState.customCredIdSize = buflen;
     }
     check_ret(ret);
 
@@ -1025,7 +1042,7 @@ static uint8_t parse_cred_mgmt_subcommandparams(CborValue * val, CTAP_credMgmt *
 
     ret = cbor_value_enter_container(val,&map);
     check_ret(ret);
-    
+
     const uint8_t * start_byte = cbor_value_get_next_byte(&map) - 1;
 
     ret = cbor_value_get_map_length(val, &map_length);
