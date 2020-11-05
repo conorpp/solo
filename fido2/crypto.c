@@ -6,7 +6,7 @@
 // copied, modified, or distributed except according to those terms.
 /*
  *  Wrapper for crypto implementation on device.
- * 
+ *
  *  Can be replaced with different crypto implementation by
  *  defining EXTERNAL_SOLO_CRYPTO
  *
@@ -260,18 +260,47 @@ fail:
 
 }
 
+// Assumes inputs are 32 byte little endian numbers.
+static int bigint_less_than(uint8_t * lhs, uint8_t * rhs) {
+    // lhs < rhs ?
+    for (size_t i = 31; i >= 0; i--) {
+        if (rhs[i] > lhs[i]) {
+            return 1;
+        } else if (lhs[i] > rhs[i]) {
+            return 0;
+        }
+    }
+    // equal
+    return 0;
+}
+
 void generate_private_key(uint8_t * data, int len, uint8_t * data2, int len2, uint8_t * privkey)
 {
+    uint8_t zero[32] =  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+    uint8_t p256_order[32] = "\x51\x25\x63\xfc\xc2\xca\xb9\xf3\x84\x9e\x17\xa7\xad\xfa\xe6\xbc"
+                             "\xff\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff";
     uint8_t privkey_swap[32];
+    int iterations = 0;
     crypto_sha256_hmac_init(CRYPTO_MASTER_KEY, 0, privkey_swap);
     crypto_sha256_update(data, len);
     crypto_sha256_update(data2, len2);
     crypto_sha256_hmac_final(CRYPTO_MASTER_KEY, 0, privkey_swap);
+
+    while (
+        memcmp(privkey_swap, zero, 32) == 0 ||
+        !bigint_less_than(privkey_swap, p256_order)
+    ) {
+        crypto_sha256_hmac_init(CRYPTO_MASTER_KEY, 0, privkey_swap);
+        crypto_sha256_update(privkey_swap, 32);
+        crypto_sha256_hmac_final(CRYPTO_MASTER_KEY, 0, privkey_swap);
+        iterations += 1;
+    }
     for (int i = 0; i < 32; i++) {
         privkey[31 - i] = privkey_swap[i];
     }
 
-    printf1(TAG_RED,"GENERATED PRIVATE KEY: \r\n");
+    printf1(TAG_RED,"GENERATED PRIVATE KEY[%d]: \r\n", iterations);
     dump_hex1(TAG_RED, privkey, 32);
 }
 
