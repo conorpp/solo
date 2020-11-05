@@ -135,20 +135,21 @@
 #define CREDENTIAL_IS_SUPPORTED     1
 #define CREDENTIAL_NOT_SUPPORTED    0
 
-#define ALLOW_LIST_MAX_SIZE         20
+#define ALLOW_LIST_MAX_SIZE         10
 
 #define NEW_PIN_ENC_MAX_SIZE        256     // includes NULL terminator
 #define NEW_PIN_ENC_MIN_SIZE        64
 #define NEW_PIN_MAX_SIZE            64
 #define NEW_PIN_MIN_SIZE            4
 
-#define CTAP_RESPONSE_BUFFER_SIZE   4096
+#define CTAP_RESPONSE_BUFFER_SIZE   4396
 
 #define PIN_LOCKOUT_ATTEMPTS        8       // Number of attempts total
 #define PIN_BOOT_ATTEMPTS           3       // number of attempts per boot
 
 #define CTAP2_UP_DELAY_MS           29000
-#define EXT_STATE_SIZE              43
+#define EXT_STATE_SUPPORTED_SIZE            42
+#define EXT_STATE_MAX_SIZE                  256
 
 typedef struct
 {
@@ -161,24 +162,37 @@ typedef struct
 
 typedef struct {
     uint8_t version;
-    uint8_t uniqueId[32];
-    uint8_t extState[EXT_STATE_SIZE]; // chosen 43 to make whole credentialId 8 byte aligned.
-    uint8_t credentialMac[32];
 
     // Required fields for RK, not used for wrapped keys.
-    struct __attribute__((packed)) {
-        uint32_t count;
-        uint8_t rpIdHash[32];
-    }  rkInfo;
+    uint8_t uniqueId[32];
 
-}__attribute__((packed)) CredentialId;
+    uint16_t extStateLength;
+    uint8_t extState[EXT_STATE_MAX_SIZE];
+
+    uint8_t credentialMac[32];
+
+    // this isn't serialized, but may be optionally set to get sorted.
+    uint32_t count;
+
+}__attribute__((packed)) ExternalCredentialId;
+
+typedef struct {
+    uint8_t uniqueId[32];
+    // Required fields for RK, not used for wrapped keys.
+    uint32_t count;
+    uint8_t rpIdHash[32];
+    uint8_t credentialMac[32];
+    uint8_t _pad[4];
+
+}__attribute__((packed)) InternalCredentialId;
 
 struct  __attribute__((packed)) Credential {
-    CredentialId id;
+    ExternalCredentialId id;
     CTAP_userEntity user;
 };
+
 typedef struct {
-    CredentialId id;
+    InternalCredentialId id;
     CTAP_userEntity user;
 
     // Maximum amount of "extra" space in resident key.
@@ -197,7 +211,8 @@ typedef struct
     uint8_t aaguid[16];
     uint8_t credLenH;
     uint8_t credLenL;
-    CredentialId id;
+    // variable length bytes!!
+    uint8_t _var[1 + 32 + 32 + 256];
 } __attribute__((packed)) CTAP_attestHeader;
 
 typedef struct
@@ -211,6 +226,7 @@ typedef struct
 {
     CTAP_authDataHeader head;
     CTAP_attestHeader attest;
+    // variable length bytes!!
 } __attribute__((packed)) CTAP_authData;
 
 typedef struct
@@ -371,6 +387,7 @@ struct _getAssertionState {
     uint32_t index;
     uint32_t time;
     uint8_t user_verified;
+    uint8_t rpIdHash[32];
     uint8_t customCredId[256];
     uint8_t customCredIdSize;
 };

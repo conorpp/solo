@@ -50,7 +50,8 @@ typedef struct
 
     uint16_t rk_stored;
 
-    uint8_t extState[EXT_STATE_SIZE];
+    uint16_t extStateLength;
+    uint8_t extState[EXT_STATE_SUPPORTED_SIZE];
     uint16_t key_lens[MAX_KEYS];
     uint8_t key_space[KEY_SPACE_BYTES];
     uint8_t data_version;
