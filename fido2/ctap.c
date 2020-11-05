@@ -863,7 +863,7 @@ uint8_t ctap_make_credential(CborEncoder * encoder, uint8_t * request, int lengt
     CTAP_makeCredential MC;
     int ret;
     unsigned int i;
-    uint8_t auth_data_buf[310];
+    uint8_t auth_data_buf[566];
     CTAP_credentialDescriptor * excl_cred = (CTAP_credentialDescriptor *) auth_data_buf;
     uint8_t * sigbuf = auth_data_buf + 32;
     uint8_t * sigder = auth_data_buf + 32 + 64;
