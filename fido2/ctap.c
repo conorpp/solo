@@ -632,6 +632,8 @@ static int ctap_make_auth_data(struct rpId * rp, CborEncoder * map, uint8_t * au
             // mac stored here (credentialMac)
             ((uint8_t*)&authData->attest._var + 32 + 1 + STATE.extStateLength)
         );
+        printf1(TAG_GREEN,"credentialMac: ");
+        dump_hex1(TAG_GREEN, ((uint8_t*)&authData->attest._var + 32 + 1 + STATE.extStateLength), 32);
 
         // Cannot support these details reliably with current dicekeys spec
         // So credentials will not be ordered, and RK cred ID's will be different.
@@ -1257,6 +1259,7 @@ uint8_t ctap_end_get_assertion(CborEncoder * map, CTAP_credentialDescriptor * cr
     if ( cred_size == U2F_KEY_HANDLE_SIZE ) {
         crypto_ecc256_load_key((uint8_t*)&cred->credential.id, cred_size, NULL, 0);
     } else {
+        printf1(TAG_RED,"credentialMac: "); dump_hex1(TAG_RED,(uint8_t*)&cred->credential.id.credentialMac, 32);
         crypto_ecc256_load_key((uint8_t*)&cred->credential.id.credentialMac, 32, NULL, 0);
     }
 
