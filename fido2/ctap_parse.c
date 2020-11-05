@@ -912,6 +912,7 @@ uint8_t parse_credential_descriptor(CborValue * arr, CTAP_credentialDescriptor *
     buflen = sizeof(tmpCredIdBuffer);
     // ret = cbor_value_copy_byte_string(&val, (uint8_t*)&cred->credential.id, &buflen, NULL);
     ret = cbor_value_copy_byte_string(&val, tmpCredIdBuffer, &buflen, NULL);
+        printf1(TAG_RED,"credId:"); dump_hex1(TAG_RED,tmpCredIdBuffer, buflen);
 
     // First we need to figure out if this is a dicekey credId.
     if (buflen >= 65 && buflen <= (65 + 256)) {
@@ -935,12 +936,22 @@ uint8_t parse_credential_descriptor(CborValue * arr, CTAP_credentialDescriptor *
             buflen = 256;
             ret = cbor_value_copy_byte_string(&val, getAssertionState.customCredId, &buflen, NULL);
             getAssertionState.customCredIdSize = buflen;
+            memmove((uint8_t*)&cred->credential.id, tmpCredIdBuffer, sizeof(ExternalCredentialId));
         }
     }
     else if (buflen == U2F_KEY_HANDLE_SIZE)
     {
         printf2(TAG_PARSE,"CTAP1 credential\n");
         cred->type = PUB_KEY_CRED_CTAP1;
+    } else {
+        // Assume custom credential
+        printf2(TAG_ERR,"Ignoring credential is incorrect length, treating as custom\n");
+        cred->type = PUB_KEY_CRED_CUSTOM;
+        buflen = 256;
+        ret = cbor_value_copy_byte_string(&val, getAssertionState.customCredId, &buflen, NULL);
+        getAssertionState.customCredIdSize = buflen;
+        memmove((uint8_t*)&cred->credential.id, tmpCredIdBuffer, sizeof(ExternalCredentialId));
+
     }
     check_ret(ret);
 
