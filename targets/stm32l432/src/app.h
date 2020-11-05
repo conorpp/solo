@@ -41,7 +41,7 @@
 // #define ENABLE_SERIAL_PRINTING
 
 #if defined(SOLO_HACKER)
-#define SOLO_PRODUCT_NAME "Solo Hacker " SOLO_VERSION
+#define SOLO_PRODUCT_NAME "Solo DiceKeys " SOLO_VERSION
 #else
 #define SOLO_PRODUCT_NAME "Solo " SOLO_VERSION
 #endif
